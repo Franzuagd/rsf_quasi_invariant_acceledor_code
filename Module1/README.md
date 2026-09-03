@@ -1,110 +1,261 @@
-# Linear Lattice Module
+Linear Lattice Model
 
-`linear_lattice.py` contains the linear accelerator model used by the project.
+This project separates the linear accelerator model into three files:
 
-It provides:
+linear_lattice.py
+lattice_config.py
+running.py
 
-* lattice construction,
-* linear transfer matrices,
-* periodic Twiss functions,
-* horizontal dispersion,
-* tunes,
-* natural chromaticities,
-* natural horizontal emittance,
-* first-order chromaticity correction,
-* linear consistency checks.
+The separation is intentional:
 
-The module uses a plain Python-list representation for magnets:
+lattice_config.py
+    = machine definition and editable global configuration
 
-```python
-[name, type, length, angle, K, S, O, M, M5]
-```
+linear_lattice.py
+    = reusable linear-optics functions
 
----
+running.py
+    = executable test / plotting / reporting program
 
-# First Run
+The main rule is:
 
-Install the required packages:
+Edit the accelerator in lattice_config.py, run and test it with running.py, and do not place machine-specific configuration inside linear_lattice.py.
 
-```bash
+1. Project Structure
+
+linear_lattice.py
+
+This is the general linear-optics library.
+
+It contains:
+
+magnet construction helpers,
+
+linear transfer matrices,
+
+lattice construction,
+
+periodic Twiss and dispersion calculations,
+
+tunes,
+
+natural chromaticities,
+
+natural horizontal emittance,
+
+first-order chromatic correction,
+
+efficient linear updates,
+
+consistency checks,
+
+plotting and summary helpers.
+
+It intentionally does not contain:
+
+a specific accelerator definition,
+
+editable physical parameters,
+
+lattice ordering,
+
+optimization-variable lists,
+
+global model settings,
+
+an executable main().
+
+The same linear_lattice.py can therefore be used with a different machine by supplying a different configuration file.
+
+lattice_config.py
+
+This is the machine-specific configuration.
+
+Anything that describes the current accelerator or may need to be changed by the user belongs here.
+
+The file contains the global configuration for:
+
+PARAMETERS
+VARY
+
+magnet definitions
+cell definition
+full-ring definition
+
+LINEAR_VARIABLES
+CHROMATIC_VARIABLES
+NONLINEAR_VARIABLES
+
+PARAMETER_MAP
+CORRECTION_PARAMETER_MAP
+
+ENERGY_PARAMETER
+REPETITIONS
+STEP
+
+CHROMATIC_FAMILY1
+CHROMATIC_FAMILY2
+TARGET_CHROM_X
+TARGET_CHROM_Y
+
+These are module-level global variables.
+
+From another file, use:
+
+import lattice_config as cfg
+
+print(cfg.PARAMETERS)
+print(cfg.VARY)
+print(cfg.STEP)
+
+This is the preferred way to access the global lattice configuration.
+
+running.py
+
+This is the executable linear-lattice program.
+
+Run it with:
+
+python running.py
+
+It:
+
+reads the accelerator definition from lattice_config.py,
+
+builds the magnets and full ring,
+
+calculates the linear optics,
+
+optionally performs chromatic correction,
+
+optionally runs consistency checks,
+
+optionally tests update_linear(),
+
+always generates a complete text report,
+
+optionally prints the report in the terminal,
+
+optionally generates the linear-optics plot.
+
+running.py is intended to let the user test essentially everything in the linear model without editing linear_lattice.py.
+
+2. Requirements
+
+Install:
+
 pip install numpy matplotlib
-```
 
-Run the module directly with:
+3. First Run
 
-```bash
-python linear_lattice.py
-```
+Keep the three files in the same directory:
 
-or run the dedicated test:
+project/
+│
+├── linear_lattice.py
+├── lattice_config.py
+└── running.py
 
-```bash
-python test_linear_lattice.py
-```
+Then run:
 
-The test builds the lattice, calculates the linear optics, performs the chromatic correction, checks the lattice consistency, and saves a text report.
+python running.py
 
-For use from another module:
+The linear model will be prepared using the current configuration.
 
-```python
-import linear_lattice as lin
+A text report is generated automatically:
 
-magnets, cell, data, correction, parameters = lin.prepare_lattice()
-```
+linear_lattice_report.txt
 
-This is the recommended entry point.
+The report is saved in the current working directory, meaning the directory from which:
 
----
+python running.py
 
-# Main Output
+is executed.
 
-```python
-magnets, cell, data, correction, parameters = lin.prepare_lattice()
-```
+At the end of the run, the exact location is printed:
 
-returns:
+Report saved to: ...
 
-```text
-magnets
-    unique magnet definitions
+4. Global Variables vs Runtime Variables
 
-cell
-    ordered accelerator cell
+The project deliberately separates global configuration from runtime data.
 
-data
-    calculated linear optics
+Global accelerator configuration
 
-correction
-    chromaticity-correction information
+Machine-dependent globals belong in:
 
-parameters
-    parameter dictionary used to construct the lattice
-```
-
-Typical values can be accessed with:
-
-```python
-print(data[lin.TUNE_X])
-print(data[lin.TUNE_Y])
-print(data[lin.CHROM_X])
-print(data[lin.CHROM_Y])
-print(data[lin.EMITTANCE])
-print(data[lin.CIRCUMFERENCE])
-```
-
----
-
-# User-Level Configuration
-
-The main lattice parameters are stored in:
-
-```python
-lin.PARAMETERS
-```
+lattice_config.py
 
 For example:
 
-```python
+PARAMETERS = {...}
+
+VARY = [...]
+
+N_CELLS = 20
+STEP = 0.01
+
+CHROMATIC_FAMILY1 = "SF1"
+CHROMATIC_FAMILY2 = "SD1"
+
+Other modules should access them through:
+
+import lattice_config as cfg
+
+cfg.PARAMETERS
+cfg.VARY
+cfg.N_CELLS
+cfg.STEP
+
+Global run choices
+
+running.py also has a small set of global variables, but these control only what the current run should do.
+
+For example:
+
+RUN_CHECKS = True
+RUN_PLOTS = True
+RUN_UPDATE_TEST = False
+
+PRINT_PARAMETERS = False
+PRINT_MAGNETS = False
+PRINT_REPORT = True
+
+CORRECT_CHROMATICITY = True
+
+REPORT_FILE = "linear_lattice_report.txt"
+
+These are run settings, not accelerator parameters.
+
+Local runtime variables
+
+Objects constructed inside:
+
+main()
+
+are local runtime variables.
+
+Typical examples are:
+
+magnets
+lattice
+data
+correction
+parameters
+checks
+
+They should not be imported from running.py.
+
+If nonlinear.py, optimization.py, or another module needs a prepared lattice, it should prepare the model using linear_lattice.py and lattice_config.py.
+
+5. Editing the Accelerator
+
+Most normal changes should be made only in:
+
+lattice_config.py
+
+The parameter dictionary is:
+
 PARAMETERS = {
     "energy": 3.0,
     "LSD": 0.1,
@@ -114,6 +265,7 @@ PARAMETERS = {
     "X2": ...,
     "X3": ...,
 
+    "kse1": ...,
     "ks1": ...,
     "ks2": ...,
 
@@ -121,73 +273,33 @@ PARAMETERS = {
     "ko2": ...,
     "ko3": ...,
 }
-```
 
-These values describe the accelerator and may be changed by the user.
-
-The names selected for later optimization are stored in:
-
-```python
-lin.VARY
-```
-
-At the moment, `VARY` should be treated only as the current list of parameters intended to be varied. The actual optimization workflow is handled outside this module.
-
-Other important global configuration values are:
-
-```python
-lin.CELL_NAMES
-lin.N_CELLS
-lin.RING_NAMES
-```
-
-These define the lattice ordering and number of repeated cells.
-
----
-
-# Internal Constants
-
-The magnet-list positions are defined by:
-
-```python
-lin.NAME
-lin.TYPE
-lin.LENGTH
-lin.ANGLE
-lin.K
-lin.S
-lin.O
-lin.M
-lin.M5
-```
-
-These are indices used to access the magnet data structure.
+To change the initial machine, edit these values directly.
 
 For example:
 
-```python
-qf1 = lin.get_magnet(cell, "QF1")
+PARAMETERS["X1"] = 3.8
+PARAMETERS["ko1"] = 5.0
 
-print(qf1[lin.K])
-print(qf1[lin.LENGTH])
-```
+or simply change their values in the dictionary definition.
 
-`M` and `M5` are internal cached linear maps:
+6. Magnet Definition
 
-```text
-M   4×4 transverse linear map
-M5  5×5 map used for dispersion
-```
+Magnets are defined inside:
 
-They should normally be updated through the module functions rather than edited directly.
+lattice_config.py
 
----
+through:
 
-# Magnet Data Structure
+def define_magnets(parameters):
+    ...
 
-Each magnet has the form:
+using the generic constructor from linear_lattice.py:
 
-```python
+lin.magnet(...)
+
+The internal magnet representation is:
+
 [
     name,
     type,
@@ -199,345 +311,295 @@ Each magnet has the form:
     M,
     M5,
 ]
-```
 
-with:
+where:
 
-| Field    | Meaning                       |
-| -------- | ----------------------------- |
-| `NAME`   | Magnet/family name            |
-| `TYPE`   | Magnet type                   |
-| `LENGTH` | Physical length               |
-| `ANGLE`  | Total bending angle           |
-| `K`      | Quadrupole strength           |
-| `S`      | Sextupole strength            |
-| `O`      | Thin nonlinear multipole kick |
-| `M`      | Cached 4×4 linear map         |
-| `M5`     | Cached 5×5 dispersion map     |
+Field
 
-Supported types include:
+Meaning
 
-```text
+NAME
+
+magnet/family name
+
+TYPE
+
+magnet type
+
+LENGTH
+
+physical length
+
+ANGLE
+
+total bending angle
+
+K
+
+quadrupole strength
+
+S
+
+sextupole strength
+
+O
+
+thin nonlinear multipole strength
+
+M
+
+cached 4×4 transverse map
+
+M5
+
+cached 5×5 dispersion map
+
+Supported magnet types include:
+
 drift
 quadrupole
 sextupole
 bending
 multipole
-```
 
-Repeated occurrences of the same family in the cell share the same magnet object.
+Repeated occurrences of the same family in the ring share the same magnet object.
 
-Therefore, changing one family changes every occurrence of that family.
+7. Reading Magnet Data
 
----
+The list positions are internal to linear_lattice.py.
 
-# Building the Lattice
+Instead of using numeric indices in other modules, use:
 
-The simplest way to build everything is:
-
-```python
-magnets, cell, data, correction, parameters = lin.prepare_lattice()
-```
-
-The workflow is:
-
-```text
-PARAMETERS
-    ↓
-define magnets
-    ↓
-build ordered cell
-    ↓
-compute periodic linear optics
-    ↓
-compute Twiss and dispersion along the cell
-    ↓
-compute tunes, chromaticities and emittance
-    ↓
-solve chromatic correction
-```
-
-The cell and optics are then ready to be passed to the nonlinear module.
-
----
-
-# Using Different Parameters
-
-The safest general method is to create a new parameter dictionary:
-
-```python
-p = lin.PARAMETERS.copy()
-
-p["X1"] = new_value
-p["X2"] = new_value
-
-magnets, cell, data, correction, parameters = lin.prepare_lattice(
-    parameters=p
-)
-```
-
-`prepare_lattice()` builds a fresh lattice from the supplied parameters.
-
-Therefore, when this function is called again, the module currently recomputes:
-
-```text
-magnet definitions
-cell
-linear matrices
-periodic Twiss
-dispersion
-radiation integrals
-emittance
-natural chromaticity
-chromatic correction
-```
-
-This is the reliable general update path.
-
----
-
-# Updating an Existing Cell
-
-The module also provides direct update functions when a complete rebuild is not desired.
-
-## Quadrupole
-
-```python
-lin.set_quadrupole_strength(
-    cell,
-    "QF1",
-    new_K,
-)
-```
-
-Changing a quadrupole changes its linear transfer matrix.
-
-The function therefore updates:
-
-```text
-K
-M
-M5
-```
-
-After changing a quadrupole, the stored `data` is no longer valid.
-
-Recompute the linear optics:
-
-```python
-data = lin.linear_optics(
-    cell,
-    energy=parameters["energy"],
-    repetitions=lin.N_CELLS,
-)
-```
-
----
-
-# Updating Sextupoles
-
-A sextupole can be changed with:
-
-```python
-lin.set_sextupole_strength(
-    cell,
-    "S1",
-    new_S,
-)
-```
-
-In the current linear model, the on-momentum sextupole linear map is treated as a drift.
-
-Therefore changing `S` does **not** change:
-
-```text
-M
-M5
-Twiss functions
-dispersion
-tunes
-emittance
-```
-
-So the complete linear optics does not need to be recalculated only because a sextupole strength changed.
-
-However, the first-order chromaticity **does** change.
-
----
-
-# Chromaticity Correction
-
-The default chromatic correction uses:
-
-```text
-SF1
-SD1
-```
-
-as the two correction families.
-
-The normal full calculation is:
-
-```python
-magnets, cell, data, correction, parameters = lin.prepare_lattice(
-    correct_chromatic=True,
-    target_chrom_x=0.0,
-    target_chrom_y=0.0,
-)
-```
-
-This solves the required `SF1` and `SD1` strengths automatically.
-
-The corrected strengths are written directly into the shared magnet objects in `cell`.
-
----
-
-# Updating Chromaticity After Sextupole Changes
-
-If the linear optics has **not changed**, it is unnecessary to propagate the Twiss functions and dispersion again.
+lin.magnet_field(element, "NAME")
+lin.magnet_field(element, "TYPE")
+lin.magnet_field(element, "LENGTH")
+lin.magnet_field(element, "K")
+lin.magnet_field(element, "S")
+lin.magnet_field(element, "O")
 
 For example:
 
-```python
-lin.set_sextupole_strength(
-    cell,
-    "S1",
-    new_S,
+qf1 = lin.get_magnet(lattice, "QF1")
+
+print(lin.magnet_field(qf1, "K"))
+print(lin.magnet_field(qf1, "LENGTH"))
+
+This keeps the internal list representation controlled by linear_lattice.py.
+
+8. Lattice Definition
+
+The ring ordering is defined in:
+
+lattice_config.py
+
+through objects such as:
+
+DBA
+CELA
+CELL_NAMES
+N_CELLS
+RING_NAMES
+
+Conceptually:
+
+magnet definitions
+        ↓
+CELL_NAMES
+        ↓
+repeat N_CELLS times
+        ↓
+RING_NAMES
+        ↓
+full lattice
+
+Changing the machine layout should therefore be done in lattice_config.py, not in linear_lattice.py.
+
+9. Main Calculation Workflow
+
+The general calculation is:
+
+cfg.PARAMETERS
+      ↓
+cfg.define_magnets()
+      ↓
+build full ring from cfg.RING_NAMES
+      ↓
+compute magnet linear matrices
+      ↓
+periodic Twiss + dispersion
+      ↓
+propagate linear functions
+      ↓
+tunes + natural chromaticities
+      ↓
+radiation integrals + emittance
+      ↓
+optional chromatic correction
+      ↓
+prepared linear model
+
+running.py performs this complete workflow automatically.
+
+10. Preparing the Lattice From Another Module
+
+For nonlinear.py, optimization.py, or another program, import:
+
+import linear_lattice as lin
+import lattice_config as cfg
+
+Then prepare the lattice with:
+
+magnets, lattice, data, correction, parameters = lin.prepare_lattice(
+    parameters=cfg.PARAMETERS,
+    ring_names=cfg.RING_NAMES,
+    magnet_builder=cfg.define_magnets,
+    energy_parameter=cfg.ENERGY_PARAMETER,
+    correction_parameter_map=cfg.CORRECTION_PARAMETER_MAP,
+    correct_chromatic=True,
+    family1=cfg.CHROMATIC_FAMILY1,
+    family2=cfg.CHROMATIC_FAMILY2,
+    target_chrom_x=cfg.TARGET_CHROM_X,
+    target_chrom_y=cfg.TARGET_CHROM_Y,
+    repetitions=cfg.REPETITIONS,
+    step=cfg.STEP,
 )
-```
 
-can be followed by:
+This is the standard programmatic interface.
 
-```python
-S1, S2, chrom_x, chrom_y = lin.correct_chromaticity_from_data(
-    cell,
-    data,
-    family1="SF1",
-    family2="SD1",
-    target_x=0.0,
-    target_y=0.0,
-    repetitions=lin.N_CELLS,
-)
-```
+linear_lattice.py does not import the machine configuration itself. The caller explicitly supplies the configuration it wants to use.
 
-This reuses:
+11. Main Returned Objects
 
-```python
-data[lin.CS_VALUES]
-data[lin.DISP_VALUES]
-```
+prepare_lattice() returns:
 
-that were already calculated.
+magnets, lattice, data, correction, parameters
 
-The workflow is therefore:
+with:
 
-```text
-existing cell + existing linear data
-              ↓
-change sextupole strengths
-              ↓
-reuse Twiss + dispersion
-              ↓
-solve new SF1 / SD1 strengths
-```
+magnets
+    unique magnet definitions
 
-This avoids an unnecessary second linear-optics calculation.
+lattice
+    ordered full-ring lattice
 
----
+data
+    calculated linear-optics data
 
-# When Must Chromaticity Correction Be Recomputed?
+correction
+    chromatic-correction result, or None
 
-If a quantity that changes the linear optics is modified, for example:
+parameters
+    parameter dictionary actually used
 
-```text
-quadrupole strength
-bend
-magnet length
-lattice geometry
-```
+The returned parameters dictionary is a copy of the input configuration and includes corrected chromatic-family strengths when correction is enabled.
 
-then:
+12. Reading Linear Data
 
-```text
-Twiss changes
-dispersion changes
-        ↓
-sextupole chromatic response changes
-        ↓
-SF1 / SD1 must be solved again
-```
+The internal layout of data is controlled by linear_lattice.py.
 
-In this situation the easiest and safest method is simply:
+Use:
 
-```python
-magnets, cell, data, correction, parameters = lin.prepare_lattice(
-    parameters=p
-)
-```
+lin.linear_data(data, "CS0")
+lin.linear_data(data, "DISP0")
 
----
+lin.linear_data(data, "LATTICE_M4")
+lin.linear_data(data, "LATTICE_M5")
 
-# If Only Sextupoles Change
+lin.linear_data(data, "TUNE_X")
+lin.linear_data(data, "TUNE_Y")
 
-The efficient workflow is:
+lin.linear_data(data, "CHROM_X")
+lin.linear_data(data, "CHROM_Y")
 
-```text
-keep existing linear data
-        ↓
-change sextupole S
-        ↓
-recompute chromatic correction
-        ↓
-pass corrected cell to nonlinear.py
-```
+lin.linear_data(data, "EMITTANCE")
+lin.linear_data(data, "CIRCUMFERENCE")
 
-The linear Twiss and dispersion do not need to be recalculated.
+lin.linear_data(data, "S_VALUES")
+lin.linear_data(data, "CS_VALUES")
+lin.linear_data(data, "DISP_VALUES")
 
----
+For example:
 
-# If Only Thin Multipoles Change
+print(lin.linear_data(data, "TUNE_X"))
+print(lin.linear_data(data, "TUNE_Y"))
+print(lin.linear_data(data, "EMITTANCE"))
 
-The `O` value represents the thin nonlinear multipole strength.
+This avoids depending on numeric positions in the result list.
 
-Thin multipoles have no linear effect in this module.
+13. Parameter Groups
 
-Therefore changing only `O` does not require recomputing:
+lattice_config.py classifies editable parameters into three groups.
 
-```text
-Twiss
-dispersion
-tunes
-emittance
-first-order chromaticity
-```
+Linear variables
 
-The updated `cell` can be passed directly to the nonlinear calculation.
+LINEAR_VARIABLES
 
-The current module does not provide a dedicated `set_multipole_strength()` helper, so a thin multipole can currently be updated with:
+These change the linear lattice.
 
-```python
-elem = lin.get_magnet(cell, "O1")
-elem[lin.O] = new_O
-```
+Examples include:
 
-No `M` or `M5` refresh is required because a thin multipole has an identity linear map.
+energy
+quadrupole strengths
+bend scaling
+magnet lengths
+geometry parameters
 
----
+A change in one of these variables requires recomputing the linear optics.
 
-# Recalculation Rules
+Chromatic variables
 
-For the current module:
+CHROMATIC_VARIABLES
 
-| Changed quantity   | Linear optics | Chromatic correction |
-| ------------------ | ------------: | -------------------: |
-| Quadrupole `K`     |     Recompute |            Recompute |
-| Bending / geometry |     Recompute |            Recompute |
-| Sextupole `S`      |         Reuse |            Recompute |
-| Thin multipole `O` |         Reuse |                Reuse |
+These change sextupole strengths.
+
+In the current on-momentum linear model, sextupoles have the same linear map as drifts.
+
+Therefore these changes normally reuse the existing Twiss and dispersion but require a new chromatic correction.
+
+Nonlinear variables
+
+NONLINEAR_VARIABLES
+
+These currently contain the thin nonlinear multipole strengths:
+
+ko1
+ko2
+ko3
+
+They have no linear effect.
+
+Therefore a nonlinear-only change can reuse both the existing linear optics and the existing first-order chromatic correction.
+
+14. Recalculation Rules
+
+The intended update behavior is:
+
+Changed quantity
+
+Linear optics
+
+Chromatic correction
+
+linear/geometric variable
+
+recompute
+
+recompute
+
+sextupole/chromatic variable
+
+reuse
+
+recompute
+
+thin nonlinear multipole
+
+reuse
+
+reuse
 
 In short:
 
-```text
 linear change
     → recompute linear optics
     → recompute chromatic correction
@@ -546,211 +608,273 @@ sextupole change
     → reuse linear optics
     → recompute chromatic correction
 
-thin multipole change
+thin nonlinear change
     → reuse linear optics
     → reuse chromatic correction
-```
 
----
+This is why the variables are classified explicitly in lattice_config.py.
 
-# Current `prepare_lattice()` Behavior
+15. Efficient Updates
 
-It is important to distinguish what is **possible** from what `prepare_lattice()` currently does.
+During optimization it is usually unnecessary to rebuild everything after every parameter change.
 
-Calling:
+The generic update function is:
 
-```python
-lin.prepare_lattice(parameters=p)
-```
+lin.update_linear(...)
 
-always builds a fresh lattice and runs the linear-optics calculation.
+It receives:
 
-It does not currently inspect which parameter changed and selectively skip calculations.
+current lattice
+current linear data
+new parameter values
+list of edited variables
+configuration describing parameter dependencies
 
-Therefore:
+and decides what must be recalculated from the variable groups in lattice_config.py.
 
-```text
-prepare_lattice()
-    = safe complete rebuild
-```
+A typical pattern is:
 
-For one-off calculations this is normally the easiest method.
+new_parameters = parameters.copy()
+new_parameters["ko1"] = 5.0
 
-For performance-sensitive optimization, the more selective update methods described above can be used when the linear lattice is known to remain unchanged.
+lattice, data, correction, parameters = lin.update_linear(
+    lattice=lattice,
+    data=data,
+    parameters=new_parameters,
+    edited_variables=["ko1"],
+    correct_chromatic=True,
+    family1=cfg.CHROMATIC_FAMILY1,
+    family2=cfg.CHROMATIC_FAMILY2,
+    target_chrom_x=cfg.TARGET_CHROM_X,
+    target_chrom_y=cfg.TARGET_CHROM_Y,
+    repetitions=cfg.REPETITIONS,
+    step=cfg.STEP,
+    linear_variables=cfg.LINEAR_VARIABLES,
+    chromatic_variables=cfg.CHROMATIC_VARIABLES,
+    parameter_map=cfg.PARAMETER_MAP,
+    magnet_builder=cfg.define_magnets,
+    correction_parameter_map=cfg.CORRECTION_PARAMETER_MAP,
+    energy_parameter=cfg.ENERGY_PARAMETER,
+)
 
----
+This is the path intended for later use by the optimization code.
 
-# Linear Data
+16. Chromaticity Correction
 
-The main calculated data is available through:
+The correction families are configured globally in:
 
-```python
-data[lin.CS0]
-data[lin.DISP0]
+lattice_config.py
 
-data[lin.CELL_M4]
-data[lin.CELL_M5]
+using:
 
-data[lin.TUNE_X]
-data[lin.TUNE_Y]
+CHROMATIC_FAMILY1 = "SF1"
+CHROMATIC_FAMILY2 = "SD1"
 
-data[lin.CHROM_X]
-data[lin.CHROM_Y]
+TARGET_CHROM_X = 0.0
+TARGET_CHROM_Y = 0.0
 
-data[lin.EMITTANCE]
-data[lin.CIRCUMFERENCE]
+linear_lattice.py contains only the generic correction algorithm.
 
-data[lin.S_VALUES]
-data[lin.CS_VALUES]
-data[lin.DISP_VALUES]
-```
+The machine-specific choice of families and targets remains in lattice_config.py.
 
-`CS_VALUES` contains:
+When correction is enabled, the solved family strengths are written into the shared magnet objects and into the returned parameter dictionary.
 
-```text
-beta_x
-alpha_x
-gamma_x
-beta_y
-alpha_y
-gamma_y
-```
+17. running.py Options
 
-along the cell.
+The top of running.py contains the user-editable run controls:
 
-`DISP_VALUES` contains the propagated dispersion data.
+RUN_CHECKS = True
+RUN_PLOTS = True
+RUN_UPDATE_TEST = False
 
----
+PRINT_PARAMETERS = False
+PRINT_MAGNETS = False
+PRINT_REPORT = True
 
-# Interface With `nonlinear.py`
+CORRECT_CHROMATICITY = True
 
-The intended interface is:
+REPORT_FILE = "linear_lattice_report.txt"
 
-```python
-import linear_lattice as lin
+For example, to run without plots:
 
-magnets, cell, data, correction, parameters = lin.prepare_lattice()
-```
+RUN_PLOTS = False
 
-followed by passing:
+To run the consistency tests but avoid printing the entire report in the terminal:
 
-```python
-cell
-data
-```
+RUN_CHECKS = True
+PRINT_REPORT = False
 
-to the nonlinear module.
+The text report is still generated.
 
-`linear_lattice.py` is responsible for preparing the accelerator and its linear optics.
+18. Testing update_linear()
 
-`nonlinear.py` should use the prepared lattice rather than reconstructing the linear accelerator internally.
+running.py can also test the efficient update path.
 
-If only nonlinear magnet strengths change, the existing linear `data` can be reused whenever those changes do not affect the linear optics.
+Enable:
 
----
+RUN_UPDATE_TEST = True
 
-# Validation
+and specify temporary test values:
 
-Run:
+UPDATE_TEST_VALUES = {
+    "X1": 3.60,
+    "ko1": 5.0,
+}
 
-```bash
-python test_linear_lattice.py
-```
+These values are only part of the test performed by running.py.
 
-The validation report checks:
+They do not replace the original machine configuration stored in lattice_config.py.
 
-```text
+The update-test results are included in the generated text report.
+
+19. Text Report
+
+Every execution of:
+
+python running.py
+
+generates:
+
+linear_lattice_report.txt
+
+unless REPORT_FILE is changed.
+
+The report contains the main information useful for validating the model, including:
+
+general ring information
+current parameters
+variable groups
+periodic Twiss values
+periodic dispersion
+tunes
+natural chromaticities
+natural emittance
+circumference
+chromatic correction
+full-ring 4×4 matrix
+full-ring 5×5 matrix
+consistency checks
+sampling information
+magnet table
+optional update_linear test
+
+The report is intended to be the standard diagnostic output when testing changes to the linear model.
+
+20. Validation
+
+The consistency checks include:
+
 symplecticity
 periodic Twiss closure
 periodic dispersion closure
 Courant-Snyder identities
 total ring bending
-tunes
-chromaticity
-emittance
-```
 
-The main linear quantities can also be compared against an independent accelerator-optics code.
+They can be enabled in running.py with:
 
----
+RUN_CHECKS = True
 
-# Typical Use
+For model validation, the principal linear quantities can also be compared with an independent accelerator-optics code.
 
-For most one-off calculations:
+21. Interface With nonlinear.py
 
-```python
-import linear_lattice as lin
+The intended dependency structure is:
 
-magnets, cell, data, correction, parameters = lin.prepare_lattice()
-```
+lattice_config.py
+        │
+        │ machine definition
+        ▼
+linear_lattice.py
+        │
+        │ prepared lattice + linear data
+        ▼
+nonlinear.py
+        │
+        ▼
+optimization.py
 
-For a modified linear lattice:
+nonlinear.py should not reconstruct the linear accelerator.
 
-```python
-p = lin.PARAMETERS.copy()
+Instead, it should receive or prepare:
 
-p["X1"] = new_X1
+lattice
+data
+parameters
 
-magnets, cell, data, correction, parameters = lin.prepare_lattice(
-    parameters=p
-)
-```
+using the same linear_lattice.py + lattice_config.py configuration.
 
-For a sextupole-only change:
+When only nonlinear multipole strengths change, the existing linear data should be reused.
 
-```python
-lin.set_sextupole_strength(
-    cell,
-    "S1",
-    new_S,
-)
+22. Recommended Working Style
 
-S1, S2, chrom_x, chrom_y = lin.correct_chromaticity_from_data(
-    cell,
-    data,
-)
-```
+For normal lattice editing:
 
-For a thin-multipole-only change:
+edit lattice_config.py
+        ↓
+run running.py
+        ↓
+inspect linear_lattice_report.txt
+        ↓
+inspect plots/checks
 
-```python
-O1 = lin.get_magnet(cell, "O1")
-O1[lin.O] = new_O1
-```
+For nonlinear calculations:
 
-and the existing linear optics can be reused.
+import linear_lattice
+import lattice_config
+        ↓
+prepare lattice once
+        ↓
+pass lattice + data to nonlinear.py
 
----
+For optimization:
 
-# Summary
+prepare lattice once
+        ↓
+change selected cfg.VARY parameters
+        ↓
+update_linear()
+        ↓
+recompute only what the edited variables require
+        ↓
+evaluate nonlinear objective
 
-The module has two possible usage styles.
+23. Summary
 
-## Safe full rebuild
+The three files have separate responsibilities:
 
-```python
-lin.prepare_lattice(parameters=p)
-```
+File
 
-Use this whenever linear parameters may have changed.
+Responsibility
 
-## Selective update
+User normally edits it?
 
-```text
-quadrupole change
-    → update K
-    → recompute linear optics
-    → redo chromatic correction
+linear_lattice.py
 
-sextupole change
-    → update S
-    → reuse linear optics
-    → redo chromatic correction
+general linear-optics functions
 
-thin multipole change
-    → update O
-    → reuse linear optics
-```
+No
 
-The current module already supports these selective operations, but `prepare_lattice()` itself always performs the complete rebuild.
+lattice_config.py
 
+accelerator definition and global model configuration
+
+Yes
+
+running.py
+
+run settings, testing, plots, and text report
+
+Yes, for run options
+
+The central design rule is:
+
+linear_lattice.py
+    knows how to calculate
+
+lattice_config.py
+    defines what machine to calculate
+
+running.py
+    decides what to run and what to display/save
+
+This keeps the computational model reusable while making both the accelerator definition and the testing workflow easy to modify.
