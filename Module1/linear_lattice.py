@@ -1,10 +1,5 @@
 """General linear-optics tools.
 
-This module intentionally contains only imports and functions.  It does not
-contain a machine definition, user configuration, global model parameters, or
-an executable main().  A concrete lattice must provide all machine-dependent
-information explicitly (see lattice_config.py).
-
 Magnet representation used internally:
     [name, type, length, angle, K, S, O, M, M5]
 
@@ -12,69 +7,38 @@ Linear-data representation returned by linear_optics():
     [cs0, disp0, M4, M5, tune_x, tune_y, chrom_x, chrom_y,
      emittance, circumference, s_values, cs_values, disp_values]
 """
-
 import math
 import numpy as np
 
-
-def _magnet_field_index(field):
-    """Internal conversion from a readable magnet-field name to list index."""
+# NAME CALLINGS
+def _magnet_field_index(field):  #field name to integer
     names = ("NAME", "TYPE", "LENGTH", "ANGLE", "K", "S", "O", "M", "M5")
     try:
         return names.index(str(field).upper())
     except ValueError as exc:
         raise KeyError(f"Unknown magnet field: {field}") from exc
-
-
-def _linear_data_index(field):
-    """Internal conversion from a readable linear-data name to list index."""
+def _linear_data_index(field): #linear data to integer
     names = (
         "CS0", "DISP0", "LATTICE_M4", "LATTICE_M5", "TUNE_X", "TUNE_Y",
         "CHROM_X", "CHROM_Y", "EMITTANCE", "CIRCUMFERENCE", "S_VALUES",
-        "CS_VALUES", "DISP_VALUES",
-    )
+        "CS_VALUES", "DISP_VALUES")
     aliases = {"CELL_M4": "LATTICE_M4", "CELL_M5": "LATTICE_M5"}
     key = aliases.get(str(field).upper(), str(field).upper())
     try:
         return names.index(key)
     except ValueError as exc:
         raise KeyError(f"Unknown linear-data field: {field}") from exc
-
-
-def magnet_field(elem, field):
-    """Read one magnet field by name, e.g. magnet_field(elem, 'K')."""
+def magnet_field(elem, field):  #return the value of that field in elem
     return elem[_magnet_field_index(field)]
-
-
-def set_magnet_field(elem, field, value):
-    """Set one magnet field by name."""
+def set_magnet_field(elem, field, value): #Allows you to edit one of the magnects fields
     elem[_magnet_field_index(field)] = value
-
-
-def linear_data(data, field):
-    """Read one value from linear_optics() output by name."""
-    return data[_linear_data_index(field)]
-
-
-def magnet(name, magnet_type, length, angle=0.0, K_value=0.0, S_value=0.0, O_value=0.0):
+def linear_data(data, field):  #recover info from data by using names
+    return data[_linear_data_index(field)] 
+def magnet(name, magnet_type, length, angle=0.0, K_value=0.0, S_value=0.0, O_value=0.0):  #Use by configuration
     """Create one magnet in the project's compact list representation."""
-    return [
-        name,
-        magnet_type,
-        float(length),
-        float(angle),
-        float(K_value),
-        float(S_value),
-        float(O_value),
-        None,
-        None,
-    ]
+    return [name, magnet_type, float(length), float(angle), float(K_value), float(S_value), float(O_value), None, None]
 
-
-# -----------------------------------------------------------------------------
 # LINEAR TRANSFER MATRICES
-# -----------------------------------------------------------------------------
-
 
 def plane_matrix(L, k):
     """Generic 2x2 uncoupled linear map for constant focusing k."""
@@ -92,19 +56,16 @@ def plane_matrix(L, k):
 
     return np.array([[C, Sine], [-k * Sine, C]])
 
-
 def drift4(L):
     matrix = np.eye(4)
     matrix[0:2, 0:2] = plane_matrix(L, 0.0)
     matrix[2:4, 2:4] = plane_matrix(L, 0.0)
     return matrix
 
-
 def drift5(L):
     matrix = np.eye(5)
     matrix[:4, :4] = drift4(L)
     return matrix
-
 
 def quadrupole4(L, k):
     matrix = np.zeros((4, 4))
@@ -112,19 +73,16 @@ def quadrupole4(L, k):
     matrix[2:4, 2:4] = plane_matrix(L, -k)
     return matrix
 
-
 def quadrupole5(L, k):
     matrix = np.eye(5)
     matrix[:4, :4] = quadrupole4(L, k)
     return matrix
-
 
 def bending4(L, k, h):
     matrix = np.zeros((4, 4))
     matrix[0:2, 0:2] = plane_matrix(L, k + h**2)
     matrix[2:4, 2:4] = plane_matrix(L, -k)
     return matrix
-
 
 def bending5(L, k, h):
     matrix = np.eye(5)
@@ -142,9 +100,7 @@ def bending5(L, k, h):
     matrix[1, 4] = h * Sx
     return matrix
 
-
-def transfer4(elem, L=None):
-    """4x4 map through a complete magnet or through a piece of it."""
+def transfer4(elem, L=None): #4x4 map through a complete magnet or through a piece of it.
     ds = elem[2] if L is None else float(L)
 
     if elem[1] in ("drift", "sextupole"):
@@ -164,9 +120,7 @@ def transfer4(elem, L=None):
 
     raise ValueError("Unknown magnet type: " + str(elem[1]))
 
-
-def transfer5(elem, L=None):
-    """5x5 map used to propagate horizontal dispersion."""
+def transfer5(elem, L=None): #5x5 map used to propagate horizontal dispersion.
     ds = elem[2] if L is None else float(L)
 
     if elem[1] in ("drift", "sextupole"):
@@ -186,15 +140,12 @@ def transfer5(elem, L=None):
 
     raise ValueError("Unknown magnet type: " + str(elem[1]))
 
-
-def compute_matrices(elem):
-    """Compute and store the full 4x4 and 5x5 linear maps of one magnet."""
+def compute_matrices(elem): #Compute and store the full 4x4 and 5x5 linear maps of one magnet.
     elem[7] = transfer4(elem)
     elem[8] = transfer5(elem)
 
 
-def unique_magnets(lattice):
-    """Return each magnet object in a lattice only once, preserving order."""
+def unique_magnets(lattice): #Return each magnet object in a lattice only once, preserving order.
     result = []
     seen = set()
     for elem in lattice:
@@ -204,20 +155,12 @@ def unique_magnets(lattice):
             result.append(elem)
     return result
 
-
-def refresh_matrices(lattice):
-    """Recompute M and M5 for all unique magnets in a lattice or magnet list."""
+def refresh_matrices(lattice): #Recompute M and M5 for all unique magnets in a lattice or magnet list.
     for elem in unique_magnets(lattice):
         compute_matrices(elem)
 
-
-# -----------------------------------------------------------------------------
 # LATTICE CONSTRUCTION AND EDITING
-# -----------------------------------------------------------------------------
-
-
-def build_lattice(names, magnets):
-    """Replace every lattice name by its magnet list."""
+def build_lattice(names, magnets): #Replace every lattice name by its magnet list.
     magnet_by_name = {elem[0]: elem for elem in magnets}
 
     missing = [name for name in names if name not in magnet_by_name]
@@ -226,17 +169,14 @@ def build_lattice(names, magnets):
 
     return [magnet_by_name[name] for name in names]
 
-
-def get_magnet(lattice, magnet_name):
-    """Return the first magnet with the requested name."""
+def get_magnet(lattice, magnet_name): #Return the first magnet with the requested name.
     for elem in lattice:
         if elem[0] == magnet_name:
             return elem
     raise KeyError(f"Magnet {magnet_name} was not found in the lattice.")
 
 
-def set_quadrupole_strength(lattice, magnet_name, strength):
-    """Update K and immediately refresh the corresponding linear matrices."""
+def set_quadrupole_strength(lattice, magnet_name, strength): #Update K and immediately refresh the corresponding linear matrices.
     elem = get_magnet(lattice, magnet_name)
     if elem[1] != "quadrupole":
         raise ValueError(f"{magnet_name} is not a quadrupole.")
@@ -244,19 +184,14 @@ def set_quadrupole_strength(lattice, magnet_name, strength):
     compute_matrices(elem)
 
 
-def set_sextupole_strength(lattice, family_name, strength):
-    """Update S. No M/M5 refresh is needed because its linear map is a drift."""
+def set_sextupole_strength(lattice, family_name, strength): #Update S. No M/M5 refresh is needed because its linear map is a drift.
     elem = get_magnet(lattice, family_name)
     if elem[1] != "sextupole":
         raise ValueError(f"{family_name} is not a sextupole.")
     elem[5] = float(strength)
 
 
-# -----------------------------------------------------------------------------
 # LINEAR OPTICS
-# -----------------------------------------------------------------------------
-
-
 def courant_snyder_matrix(matrix):
     return np.array([
         [matrix[0, 0]**2, -2*matrix[0, 0]*matrix[0, 1], matrix[0, 1]**2, 0, 0, 0],
@@ -266,7 +201,6 @@ def courant_snyder_matrix(matrix):
         [0, 0, 0, -matrix[2, 2]*matrix[3, 2], matrix[2, 2]*matrix[3, 3] + matrix[2, 3]*matrix[3, 2], -matrix[2, 3]*matrix[3, 3]],
         [0, 0, 0, matrix[3, 2]**2, -2*matrix[3, 2]*matrix[3, 3], matrix[3, 3]**2],
     ])
-
 
 def propagate_linear_functions(lattice, cs0, disp0, step):
     s = 0.0
@@ -348,7 +282,6 @@ def propagate_linear_functions(lattice, cs0, disp0, step):
         chromy,
     ]
 
-
 def lattice_matrix(lattice):
     matrix4 = np.eye(4)
     matrix5 = np.eye(5)
@@ -358,7 +291,6 @@ def lattice_matrix(lattice):
         matrix5 = elem[8] @ matrix5
 
     return matrix4, matrix5
-
 
 def periodic_twiss_and_dispersion(lattice):
     matrix4, matrix5 = lattice_matrix(lattice)
@@ -406,7 +338,6 @@ def periodic_twiss_and_dispersion(lattice):
 
     return cs0, disp0, matrix4, matrix5
 
-
 def linear_optics(lattice, energy, repetitions, step):
     cs0, disp0, matrix4, matrix5 = periodic_twiss_and_dispersion(lattice)
 
@@ -449,10 +380,7 @@ def linear_optics(lattice, energy, repetitions, step):
         disp_values,
     ]
 
-
-# -----------------------------------------------------------------------------
 # FIRST-ORDER CHROMATIC CORRECTION
-# -----------------------------------------------------------------------------
 
 
 def chromaticity_with_sextupoles(lattice, repetitions, step):
@@ -579,10 +507,9 @@ def correct_chromaticity(lattice, family1, family2, target_x, target_y, repetiti
     return S1, S2, corrected_x, corrected_y
 
 
-def correct_chromaticity_from_data(
+def correct_chromaticity_from_data( #Chromatic correction reusing optics already computed by linear_optics().
     lattice, data, family1, family2, target_x, target_y, repetitions, step
 ):
-    """Chromatic correction reusing optics already computed by linear_optics()."""
     if family1 == family2:
         raise ValueError("family1 and family2 must be different sextupole families.")
 
@@ -673,11 +600,7 @@ def correct_chromaticity_from_data(
     return S1, S2, corrected_x, corrected_y
 
 
-# -----------------------------------------------------------------------------
-# GENERIC PREPARATION / EFFICIENT UPDATE
-# -----------------------------------------------------------------------------
-
-
+# PREPARATION / EFFICIENT UPDATE
 def prepare_lattice(
     parameters,
     ring_names,
@@ -730,7 +653,7 @@ def prepare_lattice(
     return magnets, lattice, data, correction, p
 
 
-def update_linear(
+def update_linear( #Updating the linear data when changed some varialbes
     lattice,
     data,
     parameters,
@@ -808,12 +731,7 @@ def update_linear(
 
     return lattice, data, correction, p
 
-
-# -----------------------------------------------------------------------------
 # OPTIONAL TESTING, REPORTING, AND PLOTTING
-# -----------------------------------------------------------------------------
-
-
 def check_linear_lattice(lattice, data):
     """Return basic consistency errors for the current linear lattice."""
     M4 = data[2]
