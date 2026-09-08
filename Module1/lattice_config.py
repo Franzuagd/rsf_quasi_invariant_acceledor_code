@@ -1,17 +1,8 @@
-"""Editable definition of the accelerator lattice used by this project.
-
-This is the machine-specific file.  If the lattice, physical parameters,
-optimization variables, or linear-model settings change, edit them here.
-The computational module linear_lattice.py should not need to be edited.
+"""Editable definition of the accelerator lattice used.
 """
-
 import linear_lattice as lin
 
-
-# =============================================================================
-# 1. USER-EDITABLE PHYSICAL PARAMETERS
-# =============================================================================
-
+# 1. PHYSICAL PARAMETERS
 PARAMETERS = {
     "energy": 3.0,
     "LSD": 0.1,
@@ -46,29 +37,20 @@ PARAMETERS = {
     "ko3": 23.51531647572548,
 }
 
-
-# =============================================================================
-# 2. USER-EDITABLE OPTIMIZATION VARIABLES
-# =============================================================================
-
+# 2. OPTIMIZATION VARIABLES
 VARY = [
     "kse1", "kfd2", "kfd3", "ks1", "ks2", "ksd3",
     "ks1s", "ks2s", "ko1", "ko2", "ko3",
 ]
 
-
-# =============================================================================
-# 3. USER-EDITABLE MAGNET DEFINITIONS
-# =============================================================================
-
-
+# 3. MAGNET DEFINITIONS
 def define_magnets(parameters):
     """Return the unique magnet definitions for the current parameter values."""
     p = parameters
     LSD = p["LSD"]
     F = p["F"]
 
-    return [
+    return [   #Name/Type/strength
         # Drifts
         lin.magnet("D1", "drift", 2.654400 - LSD),
         lin.magnet("D4", "drift", 0.081240),
@@ -76,7 +58,6 @@ def define_magnets(parameters):
         lin.magnet("D12", "drift", 0.0099526),
         lin.magnet("D5D6", "drift", p["X8"]),
         lin.magnet("D9D10", "drift", p["X9"]),
-
         # Quadrupoles
         lin.magnet("QF1", "quadrupole", 0.349140, K_value=p["X1"]),
         lin.magnet("QD2", "quadrupole", 0.222950, K_value=p["X2"]),
@@ -84,7 +65,6 @@ def define_magnets(parameters):
         lin.magnet("QF4", "quadrupole", 0.224580, K_value=p["X4"]),
         lin.magnet("QD5", "quadrupole", 0.210950, K_value=p["X5"]),
         lin.magnet("QF7", "quadrupole", 0.020986, K_value=p["X6"]),
-
         # Sextupoles
         lin.magnet("SE1", "sextupole", LSD, S_value=p["kse1"]),
         lin.magnet("FD2", "sextupole", 0.094502, S_value=p["kfd2"]),
@@ -96,12 +76,10 @@ def define_magnets(parameters):
         lin.magnet("S2S", "sextupole", 0.172130, S_value=p["ks2s"]),
         lin.magnet("SF1", "sextupole", 0.220440, S_value=p["ksf1"]),
         lin.magnet("SD1", "sextupole", LSD, S_value=p["ksd1"]),
-
         # Thin higher multipoles. O is the integrated nonlinear strength.
         lin.magnet("O1", "multipole", 0.0, O_value=p["ko1"]),
         lin.magnet("O2", "multipole", 0.0, O_value=p["ko2"]),
         lin.magnet("O3", "multipole", 0.0, O_value=p["ko3"]),
-
         # Bending / combined-function magnets
         lin.magnet("DQ6", "bending", 0.275390, angle=-0.73179259 * F, K_value=2.692600),
         lin.magnet("A1", "bending", 0.075497, angle=0.0021719 * F),
@@ -122,10 +100,7 @@ def define_magnets(parameters):
     ]
 
 
-# =============================================================================
-# 4. USER-EDITABLE FULL-RING LAYOUT
-# =============================================================================
-
+# 4. FULL-RING
 DA1 = ["A1", "A2", "A3", "A4", "A5"]
 IDA1 = DA1[::-1]
 
@@ -143,29 +118,24 @@ CELA = [
 ]
 
 CELL_NAMES = DBA + CELA + CELA + CELA + DBA[::-1]
-N_CELLS = 20
+N_CELLS = 1#20
 RING_NAMES = CELL_NAMES * N_CELLS
 
+# 5. PARAMETER DEPENDENCIES  (Errors here are important to avoid)
 
-# =============================================================================
-# 5. USER-EDITABLE PARAMETER DEPENDENCIES
-# =============================================================================
-# Field names are strings on purpose. linear_lattice.py owns the internal list
-# indices, so this configuration never depends on module-level index constants.
-
-LINEAR_VARIABLES = {
-    "energy", "LSD", "F", "X1", "X2", "X3", "X4", "X5", "X6",
+LINEAR_VARIABLES = { #Variables that if changed, then we need to recompute the linear part.
+    "energy", "LSD", "F", "X1", "X2", "X3", "X4", "X5", "X6", 
     "X7", "X8", "X9",
-}
+} 
 
-CHROMATIC_VARIABLES = {
+CHROMATIC_VARIABLES = { #Variables that if changed, we need to recompute the chromatic sextupoles.
     "kse1", "kfd2", "kfd3", "ks1", "ks2", "ksd3", "ks1s", "ks2s",
     "ksf1", "ksd1",
 }
 
-NONLINEAR_VARIABLES = {"ko1", "ko2", "ko3"}
+NONLINEAR_VARIABLES = {"ko1", "ko2", "ko3"}  #Variables that if changed, they only changed the non-linear transport matrix.
 
-PARAMETER_MAP = {
+PARAMETER_MAP = {  #Which magnets do each variable affects. (name,parameter affected)
     "energy": [],
     "X1": [("QF1", "K")],
     "X2": [("QD2", "K")],
@@ -202,21 +172,16 @@ PARAMETER_MAP = {
     ],
 }
 
-CORRECTION_PARAMETER_MAP = {
+CORRECTION_PARAMETER_MAP = {  #SExtupoles used for chromatic correction
     "SF1": "ksf1",
     "SD1": "ksd1",
 }
 
-
-# =============================================================================
-# 6. USER-EDITABLE LINEAR-MODEL SETTINGS
-# =============================================================================
-
+# 6. LINEAR-MODEL SETTINGS
 ENERGY_PARAMETER = "energy"
-REPETITIONS = 1
-STEP = 0.01
-
-CHROMATIC_FAMILY1 = "SF1"
-CHROMATIC_FAMILY2 = "SD1"
+REPETITIONS = 1  #what is this used for?
+STEP = 0.01 #subdivition used for linear computations
+CHROMATIC_FAMILY1 = "SF1"  #Chromatic term 1   #Maybe I can make this more general.
+CHROMATIC_FAMILY2 = "SD1"  #Chromatic term 2
 TARGET_CHROM_X = 0.0
 TARGET_CHROM_Y = 0.0
