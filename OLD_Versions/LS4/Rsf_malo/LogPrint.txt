@@ -1,0 +1,13 @@
+------ Welcome to OPA
+[INFO] OPA home directory is
+       C:\Users\emerf\OneDrive\Escritorio\code\LS4\Tests\Rsf_malo\
+[INFO] Read global settings from 
+       C:\Users\emerf\OneDrive\Escritorio\code\LS4\Tests\Rsf_malo\opa4_glob.ini
+[INFO] Writing output to 
+       C:\Users\emerf\OneDrive\Escritorio\code\LS4\Tests\Rsf_malo\diagopa.txt
+[INFO] OPA working directory is 
+       C:\Users\emerf\OneDrive\Escritorio\code\LS4\Tests\Rsf_malo\
+[WARN] settings file  not found, use default values.
+------ Initialization complete
+[INFO] Read C:\Users\emerf\OneDrive\Escritorio\code\LS4\Tests\Rsf_malo\esrf2026_2_1_1116_BAD.opa: 
+       56 elements and 12 segments.
